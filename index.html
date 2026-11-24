@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حارس النوم – كشف الشخير</title>
+<style>
+:root{--bg:#0b1020;--card:#151b30;--tx:#e8ecf8;--mu:#8b95b5;--ac:#6c8cff;--ok:#3ddc97;--wr:#ff6b6b;--yl:#ffc857;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f3f5fb;--card:#fff;--tx:#161b2e;--mu:#5d6786;--ac:#3b5bdb;--ok:#0b9d62;--wr:#d6336c;--yl:#b7791f;color-scheme:light}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;max-width:520px;margin-inline:auto;padding:16px}
+h1{font-size:1.3rem;margin:4px 0 2px}
+.sub{color:var(--mu);font-size:.85rem;margin:0 0 14px}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px}
+.status{font-size:1.1rem;font-weight:700;margin-bottom:8px}
+.meter{height:22px;background:rgba(127,127,127,.2);border-radius:11px;overflow:hidden;position:relative}
+.bar{height:100%;width:0;background:var(--ok);transition:width .12s,background .2s}
+.thr{position:absolute;top:0;bottom:0;width:3px;background:var(--yl);right:50%}
+button{font:inherit;border:0;border-radius:14px;padding:14px;width:100%;font-weight:700;font-size:1.05rem;cursor:pointer;color:#fff;background:var(--ac)}
+button.stop{background:var(--wr)}
+.row{display:flex;gap:10px;margin-top:8px}
+.stat{flex:1;text-align:center;background:rgba(127,127,127,.12);border-radius:12px;padding:10px}
+.stat b{display:block;font-size:1.4rem}
+.stat span{font-size:.75rem;color:var(--mu)}
+label{display:block;font-size:.85rem;color:var(--mu);margin-top:10px}
+input[type=range]{width:100%}
+.log{max-height:220px;overflow-y:auto;font-size:.88rem}
+.log div{padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)}
+.log audio{width:100%;height:32px;margin-top:4px}
+.alert{display:none;position:fixed;inset:0;background:var(--wr);color:#fff;z-index:9;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:24px;animation:fl .6s infinite alternate}
+.alert.on{display:flex}
+#dk{display:none;position:fixed;inset:0;background:#000;z-index:8;color:#1c1c1c;align-items:center;justify-content:center;text-align:center;font-size:.9rem}#dk.on{display:flex}
+.alert h2{font-size:2rem;margin:0}
+.alert button{background:#fff;color:#c0182f;max-width:300px;font-size:1.3rem}
+@keyframes fl{from{filter:brightness(1)}to{filter:brightness(.7)}}
+small{color:var(--mu);display:block;line-height:1.6}
+</style>
+</head>
+<body>
+<h1>😴 حارس النوم</h1>
+<p class="sub">يسمع الشخير وانقطاع النفس وينبّهك باش تغيّر وضعية نومك</p>
+
+<div class="card">
+  <div class="status" id="st">جاهز</div>
+  <div class="meter"><div class="bar" id="bar"></div><div class="thr" id="thr"></div></div>
+  <div class="row">
+    <div class="stat"><b id="nS">0</b><span>تنبيهات شخير</span></div>
+    <div class="stat"><b id="nA">0</b><span>انقطاع نفس</span></div>
+    <div class="stat"><b id="tm">00:00</b><span>مدة المراقبة</span></div>
+  </div>
+  <div style="margin-top:12px"><button id="go">▶ ابدأ المراقبة</button></div>
+  <div style="margin-top:8px"><button id="tst" style="background:#555">🔊 اختبار صوت المنبّه</button></div>
+  <div style="margin-top:8px"><button id="dkb" style="background:#333">🌑 وضع الشاشة السوداء (للنوم)</button></div>
+</div>
+
+<div class="card">
+  <label>حساسية الشخير: <b id="v1"></b></label>
+  <input type="range" id="sens" min="4" max="30" value="12">
+  <label>انقطاع النفس بعد صمت: <b id="v2"></b> ثانية</label>
+  <input type="range" id="apn" min="5" max="30" value="7">
+  <label>مستوى الصوت العالي (تنبيه فوري): <b id="v4"></b></label>
+  <input type="range" id="loudT" min="15" max="50" value="20">
+  <label>مدة صوت الشخير قبل التنبيه: <b id="v3"></b> ثانية</label>
+  <input type="range" id="dur" min="3" max="20" value="6">
+</div>
+
+<div class="card"><div class="status">⏰ منبّه الاستيقاظ</div><input type="time" id="wt" style="font:inherit;font-size:1.4rem;width:100%;padding:10px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:var(--tx)"><div style="margin-top:8px"><button id="wb">⏰ تفعيل المنبه</button></div><div id="ws" class="status" style="margin-top:8px"></div><small>حدّد الوقت قبل ما تبدأ المراقبة. في الوقت هذا يرنّ بنغمات متكررة لين تضغط «أنا صحيت»، وبعدها تتوقف المراقبة ويطلع ملخص الليلة. انصحك تضبط كذلك منبّه الهاتف العادي كاحتياط.</small></div>
+<div class="card" id="sum" style="display:none"></div>
+<div class="card">
+  <div class="status">📋 السجل والتسجيلات</div>
+  <div class="log" id="log"><small>ما فما أحداث لحد الآن</small></div>
+</div>
+
+<div class="card"><small>⚠️ هذا التطبيق للمساعدة فقط وماهوش تشخيص طبي. إذا تكرر انقطاع النفس أو التعب في النهار، استشر طبيب (تحليل نوم Polysomnography).<br>
+📱 باش يخدم: افتح الرابط في المتصفح مباشرة، اسمح بالميكروفون، خلي الهاتف يشحن وقريب منك (متر تقريباً)، ولا تقفل الصفحة. استعمل <b>وضع الشاشة السوداء</b>: الهاتف يبقى شاعل لكن الشاشة سوداء وما تضويش. إذا طفّيت الشاشة بزر القفل، المتصفح غالباً يوقف الميكروفون.</small></div>
+
+<div id="dk">اضغط مرتين للخروج</div>
+<div class="alert" id="al"><h2 id="alT"></h2><p id="alM" style="font-size:1.2rem"></p><button id="ok">أنا صحيت ✋</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let ctx,stream,an,buf,timer,wake,running=false,t0=0,mins=[],cur=null,loudRun=0,full=[],fullRec=null,nL=0,gaps=0,lastTick=0,wakeAt=0,wm=false;
+let base=-60,calib=[],hist=[],lastSnore=0,quietSince=0,cool=0,nS=0,nA=0,alarmI=null,alarming=false;
+const hz=()=>+$('sens').value;
+function upd(){$('v1').textContent=hz()+" dB فوق الهدوء";$('v2').textContent=$('apn').value;$('v3').textContent=$('dur').value;$('v4').textContent=$('loudT').value+" dB فوق الهدوء";$('thr').style.right=(100-Math.min(100,hz()/40*100))+"%"}
+["sens","apn","dur","loudT"].forEach(i=>$(i).oninput=upd);upd();
+
+function level(){an.getFloatTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=buf[i]*buf[i];return 20*Math.log10(Math.sqrt(s/buf.length)+1e-8)}
+
+async function start(){
+  $('st').textContent="⏳ جاري طلب الميكروفون… اضغط «سماح»";
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})}
+  catch(e){$('st').textContent="❌ الميكروفون ممنوع ("+(e.name||e)+"). افتح الرابط في Chrome أو Safari مباشرة (مش داخل تطبيق Claude) واسمح بالميكروفون.";return}
+  ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+  const src=ctx.createMediaStreamSource(stream);an=ctx.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);src.connect(an);
+  const ko=ctx.createOscillator(),kg=ctx.createGain();kg.gain.value=0.0001;ko.connect(kg);kg.connect(ctx.destination);ko.start();
+  try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+  running=true;t0=Date.now();calib=[];hist=[];lastSnore=0;quietSince=0;cool=Date.now()+5000;mins=[];cur=null;loudRun=0;nS=nA=nL=0;full=[];gaps=0;lastTick=Date.now();
+  {const v=$('wt').value;wakeAt=0;if(v){const t=new Date();t.setHours(+v.slice(0,2),+v.slice(3,5),0,0);if(t<=Date.now())t.setDate(t.getDate()+1);wakeAt=+t}}$('nS').textContent=0;$('nA').textContent=0;$('sum').style.display='none';
+  try{fullRec=new MediaRecorder(stream,{audioBitsPerSecond:16000});fullRec.ondataavailable=e=>e.data.size&&full.push(e.data);fullRec.start(10000)}catch(e){fullRec=null}
+  $('go').textContent="⏹ أوقف المراقبة";$('go').className="stop";
+  timer=setInterval(tick,200);
+}
+function stop(){running=false;clearInterval(timer);stopAlarm();
+  const end=(url)=>{stream&&stream.getTracks().forEach(t=>t.stop());ctx&&ctx.close();wake&&wake.release().catch(()=>{});finish(url)};
+  if(fullRec&&fullRec.state!=="inactive"){fullRec.onstop=()=>end(URL.createObjectURL(new Blob(full,{type:fullRec.mimeType})));fullRec.stop()}else end();$('go').textContent="▶ ابدأ المراقبة";$('go').className="";$('st').textContent="موقوف";$('bar').style.width="0"}
+$('go').onclick=()=>running?stop():start();
+document.addEventListener('visibilitychange',async()=>{if(running&&document.visibilityState==='visible'){try{wake=await navigator.wakeLock.request('screen')}catch(e){}ctx&&ctx.resume()}});
+$('tst').onclick=async()=>{if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();beep(700,.4);setTimeout(()=>beep(1000,.4),500)};
+let wi=0;
+$('wb').onclick=async()=>{const v=$('wt').value;if(!v){$('ws').textContent="حدّد الوقت أولاً";return}
+  if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();
+  const t=new Date();t.setHours(+v.slice(0,2),+v.slice(3,5),0,0);if(t<=Date.now())t.setDate(t.getDate()+1);wakeAt=+t;
+  $('ws').textContent="✅ المنبه مفعّل على "+v+" · خلي الصفحة مفتوحة";beep(900,.2);
+  if(!wi)wi=setInterval(()=>{if(wakeAt&&Date.now()>=wakeAt){wakeAt=0;$('ws').textContent="";wakeUp()}},1000);
+  try{wake=await navigator.wakeLock.request('screen')}catch(e){}};
+let tap=0;
+$('dkb').onclick=()=>{$('dk').classList.add('on');try{document.documentElement.requestFullscreen()}catch(e){}};
+$('dk').onclick=()=>{const n=Date.now();if(n-tap<600){$('dk').classList.remove('on');try{document.exitFullscreen()}catch(e){}}tap=n};
+
+function tick(){
+  const now=Date.now();if(lastTick&&now-lastTick>3000)gaps+=now-lastTick;lastTick=now;if(wakeAt&&now>=wakeAt){wakeAt=0;wakeUp()}const db=level(),el=Math.floor((now-t0)/1000);
+  $('tm').textContent=String(Math.floor(el/60)).padStart(2,"0")+":"+String(el%60).padStart(2,"0");
+  if(el<5){calib.push(db);base=calib.reduce((a,b)=>a+b,0)/calib.length;$('st').textContent="⏳ معايرة صوت الغرفة… (ما تتحركش)";return}
+  const lv=Math.max(0,db-base);
+  const mi=Math.floor((now-t0)/60000);if(!cur||cur.m!==mi){cur={m:mi,n:0,s:0,l:0,sum:0};mins.push(cur)}
+  cur.n++;cur.sum+=lv;if(lv>hz())cur.s++;if(lv>+$('loudT').value){cur.l++;loudRun++}else loudRun=0;
+  $('bar').style.width=Math.min(100,lv/40*100)+"%";
+  $('bar').style.background=lv>hz()?"var(--wr)":"var(--ok)";
+  hist.push([now,lv>hz()]);while(hist.length&&now-hist[0][0]>10000)hist.shift();
+  const need=+$('dur').value*1000;
+  const win=hist.filter(h=>now-h[0]<=need),loud=win.filter(h=>h[1]).length;
+  const ratio=win.length?loud/win.length:0;
+  if(lv>hz())quietSince=0;else if(lv<4){if(!quietSince)quietSince=now}else quietSince=0;
+  const snoring=ratio>0.35&&hist.length&&(now-hist[0][0])>=need-600;
+  if(snoring){lastSnore=now}
+  $('st').textContent=(alarming?"🔔 تنبيه":snoring?"🔊 شخير…":"✅ نوم هادئ")+" · "+Math.round(lv)+" dB";
+  if(alarming||now<cool)return;
+  if(loudRun>=3){nS++;nL++;$('nS').textContent=nS;loudRun=0;fire("🔴 شخير عالي جداً","صوتك عالي: غيّر وضعيتك وتنفّس بعمق.","شخير عالي جداً",true)}
+  else if(snoring){nS++;$('nS').textContent=nS;fire("🔊 تغيّر وضعية نومك","نمت على ضهرك؟ دور على جنبك.","شخير",true)}
+  else if(lastSnore&&now-lastSnore<90000&&quietSince&&now-quietSince>=(+$('apn').value)*1000){
+    nA++;$('nA').textContent=nA;lastSnore=0;fire("⚠️ نفسك وقف","تنفّس وغيّر وضعيتك.","انقطاع نفس محتمل",false)}
+}
+
+function finish(url){
+  const T=mins.length;if(T<2)return;
+  const sn=mins.filter(x=>x.s/x.n>.2).length,lo=mins.filter(x=>x.l/x.n>.1).length,sp=sn/T*100,lp=lo/T*100;
+  let c,col,tx;
+  if(lp>8||nA>=3||nL>=5){c="نوم سيّئ 🔴";col="var(--wr)";tx="شخير عالي متكرر أو توقفات نفس: مؤشر محتمل على نقص أكسجين. ننصحك بزيارة طبيب."}
+  else if(sp>15||lp>2||nA>=1){c="نوم متوسط 🟡";col="var(--yl)";tx="فما شخير متقطع. جرّب النوم على الجنب."}
+  else{c="نوم هادئ 🟢";col="var(--ok)";tx="شخير خفيف أو بدونه: نوم مريح."}
+  const B=Math.max(1,Math.ceil(T/48)),bars=[];
+  for(let i=0;i<T;i+=B){const g=mins.slice(i,i+B),n=g.reduce((a,x)=>a+x.n,0),av=g.reduce((a,x)=>a+x.sum,0)/n,l=g.reduce((a,x)=>a+x.l,0)/n,s=g.reduce((a,x)=>a+x.s,0)/n;bars.push([av,l>.1?"var(--wr)":s>.2?"var(--yl)":"var(--ok)"])}
+  const w=480/bars.length;let svg='<svg viewBox="0 0 480 100" width="100%" style="direction:ltr">';
+  bars.forEach((b,i)=>{const h=Math.max(2,Math.min(100,b[0]/40*100));svg+='<rect x="'+(i*w+1)+'" y="'+(100-h)+'" width="'+Math.max(1,w-2)+'" height="'+h+'" rx="2" fill="'+b[1]+'"/>'});svg+='</svg>';
+  const f=m=>Math.floor(m/60)+"س "+(m%60)+"د",d=mins.length,quiet=T-sn,score=Math.max(0,Math.round(100-sp*0.7-lp*2-nA*4));
+  $('sum').innerHTML='<div class="status" style="color:'+col+'">📊 ملخص الليلة: '+c+'</div><small>'+tx+'</small>'+svg+'<small>كل عمود = '+B+' دقيقة · أخضر هادئ · أصفر شخير · أحمر شخير عالي</small><div class="row"><div class="stat"><b>'+f(quiet)+'</b><span>نوم بدون شخير 🟢</span></div><div class="stat"><b>'+f(sn)+'</b><span>نوم بشخير 🔴</span></div></div><div class="row"><div class="stat"><b>'+score+'/100</b><span>التقييم الشامل</span></div><div class="stat"><b>'+nA+'</b><span>توقف نفس</span></div><div class="stat"><b>'+f(d)+'</b><span>مدة المراقبة</span></div></div>'+(gaps>60000?'<small>⚠️ التطبيق ما سجّلش حوالي '+Math.round(gaps/60000)+' دقيقة (الهاتف علّق الصفحة). استعمل وضع الشاشة السوداء.</small>':'')+(url?'<label>🎙️ تسجيل الليلة كاملة</label><audio controls src="'+url+'" style="width:100%"></audio><a href="'+url+'" download="night.webm" style="color:var(--ac)">⬇ تحميل التسجيل</a>':'');
+  $('sum').style.display='block';$('sum').scrollIntoView({behavior:'smooth'});
+}
+let rec=null;
+function clip(label){
+  try{const r=new MediaRecorder(stream),ch=[];r.ondataavailable=e=>ch.push(e.data);
+    r.onstop=()=>{addLog(label,URL.createObjectURL(new Blob(ch,{type:r.mimeType})))};r.start();setTimeout(()=>r.state!=="inactive"&&r.stop(),8000)}
+  catch(e){addLog(label)}
+}
+function addLog(label,url){
+  const L=$('log');if(L.querySelector('small'))L.innerHTML="";
+  const d=document.createElement('div');d.innerHTML="<b>"+new Date().toLocaleTimeString('ar-TN')+"</b> — "+label+(url?'<audio controls src="'+url+'"></audio>':"");
+  L.prepend(d);
+}
+function beep(f,d){const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=f;o.type="square";g.gain.value=1;o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+d)}
+function fire(t,m,label){
+  alarming=true;$('alT').textContent=t;$('alM').textContent=m;$('al').classList.add('on');
+  clip(label);
+  let n=0;const go=()=>{beep(n%2?1000:700,.4);n++};
+  go();alarmI=setInterval(go,700);
+  setTimeout(()=>alarming&&stopAlarm(),20000);
+}
+function wakeUp(){
+  if(alarming){clearInterval(alarmI)}
+  alarming=true;wm=true;$('alT').textContent="⏰ وقت الاستيقاظ";$('alM').textContent="صباح الخير! هذا الوقت اللي ضبطته.";$('al').classList.add('on');
+  let n=0;const go=()=>{beep([523,659,784][n%3],.35);n++};go();alarmI=setInterval(go,500);
+}
+function stopAlarm(){
+  clearInterval(alarmI);alarming=false;$('al').classList.remove('on');
+  cool=Date.now()+60000;hist=[];quietSince=0;if(wm){wm=false;if(running)stop()}
+}
+$('ok').onclick=stopAlarm;
+</script>
+</body>
+</html>
